@@ -21,6 +21,11 @@ public class FPSPlayer : NetworkBehaviour
     private float verticalVelocity;
     private float cameraPitch = 0f;
 
+    [Header("Shooting Stuff")]
+    public Transform lazerTransform;
+    public TrailRenderer lazerBeam;
+    private bool isShooting;
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -29,8 +34,6 @@ public class FPSPlayer : NetworkBehaviour
         {
             playerCamera.gameObject.SetActive(false);
         }
-
-
         // Lock cursor
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -44,10 +47,10 @@ public class FPSPlayer : NetworkBehaviour
         HandleLook();
     }
 
+
+
     private void HandleMovement()
     {
-        if (!isLocalPlayer) return;
-        // Translate move input to world space
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
         move *= moveSpeed;
 
@@ -65,7 +68,7 @@ public class FPSPlayer : NetworkBehaviour
 
     private void HandleLook()
     {
-        if (!isLocalPlayer) return;
+
         float mouseX = lookInput.x * lookSpeed * Time.deltaTime;
         float mouseY = lookInput.y * lookSpeed * Time.deltaTime;
 
@@ -76,9 +79,34 @@ public class FPSPlayer : NetworkBehaviour
         transform.Rotate(Vector3.up * mouseX);
     }
 
+    public void HandleShoot()
+    {
+        if (!isLocalPlayer) return;
+        Ray ray = new Ray(lazerTransform.position, lazerTransform.forward);
+
+        // Instantiate the visual beam
+        TrailRenderer beam = Instantiate(lazerBeam, lazerTransform.position, Quaternion.identity);
+        beam.AddPosition(lazerTransform.position);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, 50f))
+        {
+            beam.transform.position = hit.point;
+
+            // Try to damage a player if hit
+            var playerStats = hit.collider.gameObject.GetComponent<PlayerStats>();
+            if (playerStats)
+            {
+                playerStats.Damage(20); // Example damage amount
+            }
+        }
+        else
+        {
+            beam.transform.position = lazerTransform.position + lazerTransform.forward * 50f;
+        }
+    }
+
     public void OnMove(InputValue value)
     {
-
         moveInput = value.Get<Vector2>();
     }
 
@@ -86,5 +114,13 @@ public class FPSPlayer : NetworkBehaviour
     {
         lookInput = value.Get<Vector2>();
     }
-}
 
+    public void OnFire(InputValue value)
+    {
+        if (value.isPressed)
+        {
+            HandleShoot();
+        }
+    }
+
+}
